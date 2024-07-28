@@ -34,7 +34,7 @@ def board_to_tensor(board, color):
     
     return tensor
 
-def move_to_output_index(move):
+def move_to_output_tensor(move):
     """
     Convert a move to the coordinate in the output tensor (8x8x8x8)
     """
@@ -46,7 +46,17 @@ def move_to_output_index(move):
     from_x, from_y = from_square // 8, from_square % 8
     to_x, to_y = to_square // 8, to_square % 8
 
+    assert from_x >= 0 and from_x < 8
+    assert from_y >= 0 and from_y < 8
+    assert to_x >= 0 and to_x < 8
+    assert to_y >= 0 and to_y < 8
+
     # 0bjjjkkklllmmm : j=from_x, k=from_y, l=to_x, m=to_y
-    return from_x << 9 + from_y << 6 + to_x << 3 + to_y
+    index = (from_x << 9) | (from_y << 6) | (to_x << 3) | (to_y)
+    # print("from_x", from_x, "from_y", from_y, "to_x", to_x, "to_y", to_y, "index", index)
+
+    output_tensor = torch.zeros(8*8*8*8)
+    output_tensor[index] = 1
+    return output_tensor
 
     

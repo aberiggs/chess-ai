@@ -20,14 +20,15 @@ class ChessModel(nn.Module):
             nn.ReLU(),
             nn.Conv2d(64, 64, kernel_size=3, padding=1),
             nn.ReLU(),
-            # Fully connected layers
+            # Flatten the tensor for the fully connected layers
             nn.Flatten(),
-            nn.Linear(64*8*8, 4096),
+            # Fully connected layers
+            nn.Linear(64*8*8, 64*8*8),
             nn.ReLU(),
-            nn.Linear(4096, 4096),
+            nn.Linear(64*8*8, 64*8*8),
             nn.ReLU(),
             # Output layer
-            nn.Linear(4096, 8*8*8*8)
+            nn.Linear(64*8*8, 8*8*8*8)
         )
 
     def forward(self, x):
