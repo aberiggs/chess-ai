@@ -36,15 +36,23 @@ device = (
         else "cpu"
     )
 
-model = ChessModel().to(device)
-model.load_state_dict(torch.load("model.pth", weights_only=True))
-model.eval()
+modela = ChessModel().to(device)
+modela.load_state_dict(torch.load("model.pth", weights_only=True))
+modela.eval()
+modelb = ChessModel().to(device)
+modelb.load_state_dict(torch.load("7-27-24_model.pth", weights_only=True))
+modelb.eval()
 board = chess.Board();
 
 pgn = chess.pgn.Game()
 node = pgn
+model = None
 while not board.is_game_over():
     print(board)
+    if board.turn == chess.WHITE:
+        model = modela
+    else:
+        model = modelb
     move = predict(board, model, device)
     board.push(move)
     # add move to pgn

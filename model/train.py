@@ -35,7 +35,7 @@ def train():
     model = ChessModel().to(device)
 
     learning_rate = 0.001
-    epochs = 5;
+    epochs = 10;
     loss_fn = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
@@ -99,8 +99,7 @@ def train():
             batch_count += 1
         """
         
-        torch.save(model.state_dict(), "model.pth")
-   
+    torch.save(model.state_dict(), "model.pth")
         
             
             
