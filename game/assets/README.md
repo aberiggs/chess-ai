@@ -1,0 +1,1 @@
+These assets are made by Ajay Karat. Check them out [here](https://devilsworkshop.itch.io/pixel-art-chess-asset-pack)!

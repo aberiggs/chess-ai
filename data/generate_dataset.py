@@ -45,15 +45,19 @@ def extract_data(game) -> list:
     return data
 
 def generate_dataset(pgn_file: str, dst_file: str):
-    games = parse_pgn_file(pgn_file, 80000)
+    print("Generating dataset from", os.path.abspath(pgn_file))
+    games = parse_pgn_file(pgn_file, 800000)
     data = []
+    games_in_set = 0
     for game in games:
         white_elo = int(game.headers['WhiteElo'])
         black_elo = int(game.headers['BlackElo'])
-        if white_elo < 1500 and black_elo < 1500:
+        if white_elo < 2000 and black_elo < 2000:
             continue
         data += extract_data(game)
-    print("Finished extracting moves from games")
+        games_in_set += 1
+
+    print(f"Finished extracting moves from {games_in_set} games")
 
     dataset = ChessDataset(data)
     print("Generated a dataset with", len(dataset), "samples")
@@ -62,5 +66,5 @@ def generate_dataset(pgn_file: str, dst_file: str):
 
 if __name__ == "__main__":
     pgn_file = "data.pgn"
-    dst_file = "lichess_2017_dataset.pth"
+    dst_file = "lichess_2017_02_dataset.pth"
     generate_dataset(pgn_file, dst_file)

@@ -11,9 +11,39 @@ Will output a 8x8x8x8 tensor representing the probability of each piece being mo
 - From position within the first 8x8 board
 - To position within the second 8x8 board
 """
+
 class ChessModel(nn.Module):
     def __init__(self):
         super(ChessModel, self).__init__()
+        self.conv_nn_stack = nn.Sequential(
+            # Convolutional layers
+            nn.Conv2d(15, 64, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(64, 128, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.Conv2d(128, 256, kernel_size=3, padding=1),
+            nn.ReLU(),
+            # Flatten the tensor for the fully connected layers
+            nn.Flatten(),
+            # Fully connected layers
+            nn.Linear(256*8*8, 128*8*8),
+            nn.ReLU(),
+            nn.Dropout(0.5),
+            nn.Linear(128*8*8, 32*8*8),
+            nn.ReLU(),
+            nn.Dropout(0.5),
+            # Output layer
+            nn.Linear(32*8*8, 8*8*8*8)
+        )
+
+    def forward(self, x):
+        logits = self.conv_nn_stack(x)
+        return logits
+
+
+class ChessModel_V1(nn.Module):
+    def __init__(self):
+        super(ChessModel_V1, self).__init__()
         self.conv_nn_stack = nn.Sequential(
             # Convolutional layers
             nn.Conv2d(15, 64, kernel_size=3, padding=1),

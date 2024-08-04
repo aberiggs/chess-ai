@@ -1,3 +1,7 @@
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 import chess
 from conversions import board_to_tensor, move_to_index
 
@@ -22,46 +26,49 @@ def predict(board, model, device):
     return logits_to_move(logits, board)
 
 
-# Create chess game to test
-import chess
-import chess.pgn
-import torch
-from model import ChessModel
+def main():
+    # Create chess game to test
+    import chess
+    import chess.pgn
+    import torch
+    from model import ChessModel, ChessModel_V1
 
-device = (
-        "cuda"
-        if torch.cuda.is_available()
-        else "mps"
-        if torch.backends.mps.is_available()
-        else "cpu"
-    )
+    device = (
+            "cuda"
+            if torch.cuda.is_available()
+            else "mps"
+            if torch.backends.mps.is_available()
+            else "cpu"
+        )
 
-modela = ChessModel().to(device)
-modela.load_state_dict(torch.load("model.pth", weights_only=True))
-modela.eval()
-modelb = ChessModel().to(device)
-modelb.load_state_dict(torch.load("7-27-24_model.pth", weights_only=True))
-modelb.eval()
-board = chess.Board();
+    modela = ChessModel().to(device)
+    modela.load_state_dict(torch.load("model.pth", weights_only=True))
+    modela.eval()
+    modelb = ChessModel_V1().to(device)
+    modelb.load_state_dict(torch.load("8-01-24_model.pth", weights_only=True))
+    modelb.eval()
+    board = chess.Board();
 
-pgn = chess.pgn.Game()
-node = pgn
-model = None
-while not board.is_game_over():
-    print(board)
-    if board.turn == chess.WHITE:
-        model = modela
-    else:
-        model = modelb
-    move = predict(board, model, device)
-    board.push(move)
-    # add move to pgn
-    node = node.add_main_variation(move)
-    print("\n")
+    pgn = chess.pgn.Game()
+    node = pgn
+    model = None
+    while not board.is_game_over():
+        print(board)
+        if board.turn == chess.WHITE:
+            model = modelb
+        else:
+            model = modela
+        move = predict(board, model, device)
+        board.push(move)
+        # add move to pgn
+        node = node.add_main_variation(move)
+        print("\n")
 
-print(board.fen())
-print()
+    print(board.fen())
+    print()
 
-pgn.headers["Result"] = board.result()
-print(pgn)
-print()
+    pgn.headers["Result"] = board.result()
+    print(pgn)
+    print()
+
+main()

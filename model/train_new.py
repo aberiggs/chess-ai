@@ -9,9 +9,13 @@ from torch.utils.data import DataLoader
 from model import ChessModel
 
 def train():
-    ds = torch.load("../data/lichess_2017_dataset.pth", weights_only=True)
+
+    ds = torch.load("../data/lichess_2017_02_dataset.pth", weights_only=False)
     print("Preparing to train on", len(ds), "samples")
-    dl = DataLoader(ds, batch_size=64, shuffle=True)
+
+    batch_size = 128
+    dl = DataLoader(ds, batch_size=batch_size, shuffle=True)
+    print("DataLoader ready with", len(dl), "batches")
 
     device = (
         "cuda"
@@ -23,9 +27,11 @@ def train():
     print(f"Performing training using {device}")
 
     model = ChessModel().to(device)
+    if os.path.exists("model.pth"):
+        model.load_state_dict(torch.load("model.pth", weights_only=True))
 
-    learning_rate = 0.001
-    epochs = 1;
+    learning_rate = 0.0003
+    epochs = 5;
     loss_fn = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
@@ -33,8 +39,8 @@ def train():
         print("----- STARTING EPOCH", epoch + 1, "-----")
         model.train()
         batch_count = 0
+        running_loss = 0
         for batch in dl:
-            running_loss = 0
 
             model_input = batch["board"].to(device)
             best_moves = batch["next_move"].to(device)
@@ -48,11 +54,12 @@ def train():
             loss.backward()
             optimizer.step()
 
-            if batch_count % 100 == 0:
-                print(f"[Batch #{batch_count + 1}] Loss: {running_loss}")
+            if (batch_count+1) % 500 == 0:
+                print(f"[Batch #{batch_count + 1}] Loss: {running_loss/500}")
+                running_loss = 0
             batch_count += 1
-
-    torch.save(model.state_dict(), "model.pth")
+        
+        torch.save(model.state_dict(), "model.pth")
         
             
             
