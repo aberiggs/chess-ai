@@ -5,12 +5,12 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
+from conversions import move_to_index
 
 from model import ChessModel
 
-def test():
-
-    ds = torch.load("../data/lichess_2017_02_dataset.pth", weights_only=False)
+def verify() -> float:
+    ds = torch.load("../data/lichess_2017-03_dataset.pth", weights_only=False)
     print("Preparing to train on", len(ds), "samples")
 
     batch_size = 64
@@ -39,9 +39,11 @@ def test():
         best_moves = batch["next_move"].to(device)
         logits = model(model_input)
         
-        total_count += batch_size
-        for i in range(batch_size):
-            if torch.argmax(logits[i]) == torch.argmax(best_moves[i]):
+        total_count += len(batch)
+        for i in range(len(batch)):
+            prediction = torch.argmax(logits[i])
+            actual = best_moves[i]
+            if prediction == actual:
                 correct_count += 1
 
         if (batch_count+1) % 250 == 0:
@@ -55,4 +57,4 @@ def test():
             
 
 if __name__ == "__main__":
-    test()
+    verify()

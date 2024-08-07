@@ -60,9 +60,6 @@ def move_to_output_tensor(move) -> torch.Tensor:
     """
     Convert a move to the coordinate in the output tensor (8x8x8x8)
     """
-
-    output_tensor = torch.zeros(8*8*8*8)
-    output_tensor[move_to_index(move)] = 1
-    return output_tensor
+    return torch.tensor(move_to_index(move))
 
     

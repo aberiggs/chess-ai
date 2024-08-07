@@ -155,3 +155,4 @@ if __name__ == "__main__":
     rand.seed(0)
     random_color = rand.choice([chess.WHITE, chess.BLACK])
     play_ai(random_color)
+    # main()

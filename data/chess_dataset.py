@@ -6,7 +6,6 @@ import torch
 import chess
 from torch.utils.data import Dataset
 
-# import the board_to_tensor and move_to_output_tensor functions from model/conversions.py
 from conversions import board_to_tensor, move_to_output_tensor
 
 class ChessDataset(Dataset):
@@ -14,7 +13,7 @@ class ChessDataset(Dataset):
         self.fens = []
         self.next_moves = []
         for sample in data:
-            self.fens.append(sample['board'].fen())
+            self.fens.append(sample['fen'])
             self.next_moves.append(sample['next_move'])
 
     def __len__(self):

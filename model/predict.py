@@ -31,7 +31,7 @@ def main():
     import chess
     import chess.pgn
     import torch
-    from model import ChessModel, ChessModel_V1
+    from model import ChessModel #, ChessModel_V1
 
     device = (
             "cuda"
@@ -44,8 +44,8 @@ def main():
     modela = ChessModel().to(device)
     modela.load_state_dict(torch.load("model.pth", weights_only=True))
     modela.eval()
-    modelb = ChessModel_V1().to(device)
-    modelb.load_state_dict(torch.load("8-01-24_model.pth", weights_only=True))
+    modelb = ChessModel().to(device)
+    modelb.load_state_dict(torch.load("model.pth", weights_only=True))
     modelb.eval()
     board = chess.Board();
 
