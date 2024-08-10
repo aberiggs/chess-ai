@@ -108,7 +108,7 @@ def play_ai(ai_color):
     print("Using device:", device)
 
     model = ChessModel().to(device)
-    model.load_state_dict(torch.load("../model/model.pth", weights_only=True))
+    model.load_state_dict(torch.load("../model/8-5-2024.pth", weights_only=True))
     
     update_screen(board)
 

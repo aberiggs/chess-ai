@@ -54,7 +54,7 @@ def move_to_index(move) -> int:
     # 0bjjjkkklllmmm : j=from_x, k=from_y, l=to_x, m=to_y
     return (from_x << 9) | (from_y << 6) | (to_x << 3) | (to_y)
     # print("from_x", from_x, "from_y", from_y, "to_x", to_x, "to_y", to_y, "index", index)
-    
+ 
 
 def move_to_output_tensor(move) -> torch.Tensor:
     """
@@ -62,4 +62,17 @@ def move_to_output_tensor(move) -> torch.Tensor:
     """
     return torch.tensor(move_to_index(move))
 
-    
+def index_to_move(index) -> chess.Move:
+    """
+    Convert an index to a move
+    """
+    # Get the coordinates from the index
+    from_x = (index >> 9) & 0b111
+    from_y = (index >> 6) & 0b111
+    to_x = (index >> 3) & 0b111
+    to_y = index & 0b111
+
+    # Convert the coordinates to a move
+    from_square = from_x * 8 + from_y
+    to_square = to_x * 8 + to_y
+    return chess.Move(from_square, to_square)

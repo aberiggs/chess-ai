@@ -35,7 +35,7 @@ def train():
     learning_rate = 0.001
     epochs = 100;
     loss_fn = nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
 
     best_loss = float("inf")
     patience = 5
