@@ -12,7 +12,10 @@ import random as rand
 
 import torch
 from model.predict import predict
-from model.model import ChessModel
+from model.model import ChessModel_V4 as ChessModel
+from model.model import ChessModel_V1
+model_path = "../model/v4_model.pth"
+model_fast_path = "../model/8-4-2024.pth"
 
 # Initialize Pygame
 pygame.init()
@@ -108,7 +111,12 @@ def play_ai(ai_color):
     print("Using device:", device)
 
     model = ChessModel().to(device)
-    model.load_state_dict(torch.load("../model/8-5-2024.pth", weights_only=True))
+    model.load_state_dict(torch.load(model_path, weights_only=True))
+    model.eval()
+    
+    model_fast = ChessModel_V1().to(device)
+    model_fast.load_state_dict(torch.load(model_fast_path, weights_only=True))
+    model_fast.eval()
     
     update_screen(board)
 
@@ -120,7 +128,7 @@ def play_ai(ai_color):
             break
 
         if board.turn == ai_color:
-            move = predict(board, model, device)
+            move = predict(board, model, model_fast, device)
             board.push(move)
             node = node.add_main_variation(move)
             update_screen(board)
