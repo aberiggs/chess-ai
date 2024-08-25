@@ -12,51 +12,56 @@ Will output a 8x8x8x8 tensor representing the probability of each piece being mo
 - To position within the second 8x8 board
 """
 
-class ChessModel(nn.Module):
+class FastChessModel(nn.Module):
     def __init__(self):
-        super(ChessModel, self).__init__()
+        super(FastChessModel, self).__init__()
         self.conv_nn_stack = nn.Sequential(
             # Convolutional layers
             nn.Conv2d(15, 64, kernel_size=3, padding=1),
             nn.ReLU(),
             nn.BatchNorm2d(64),
-            nn.Conv2d(64, 64, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.BatchNorm2d(64),
-            
-            nn.Conv2d(64, 128, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.BatchNorm2d(128),
-            nn.Conv2d(128, 128, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.BatchNorm2d(128),
-
-            nn.Conv2d(128, 256, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.BatchNorm2d(256),
-
             # Flatten the tensor for the fully connected layers
             nn.Flatten(),
-
             # Fully connected layers
-            nn.Linear(256*8*8, 128*8*8),
+            nn.Linear(64*8*8, 64*8*8),
             nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(128*8*8, 128*8*8),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-
             # Output layer
-            nn.Linear(128*8*8, 8*8*8*8)
+            nn.Linear(64*8*8, 8*8*8*8)
         )
 
     def forward(self, x):
         logits = self.conv_nn_stack(x)
         return logits
 
-class ChessModel_V4(nn.Module):
+class FastChessModel_V1(nn.Module):
     def __init__(self):
-        super(ChessModel_V4, self).__init__()
+        super(FastChessModel_V1, self).__init__()
+        self.conv_nn_stack = nn.Sequential(
+            # Convolutional layers
+            nn.Conv2d(15, 64, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.BatchNorm2d(64),
+            nn.Conv2d(64, 128, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.BatchNorm2d(128),
+            # Flatten the tensor for the fully connected layers
+            nn.Flatten(),
+            # Fully connected layers
+            nn.Linear(128*8*8, 64*8*8),
+            nn.ReLU(),
+            nn.Linear(64*8*8, 64*8*8),
+            nn.ReLU(),
+            # Output layer
+            nn.Linear(64*8*8, 8*8*8*8)
+        )
+
+    def forward(self, x):
+        logits = self.conv_nn_stack(x)
+        return logits
+
+class ChessModel(nn.Module):
+    def __init__(self):
+        super(ChessModel, self).__init__()
         self.conv_nn_stack = nn.Sequential(
             # This architecture is inspired by the VGG-Net architecture
             # Convolutional layers

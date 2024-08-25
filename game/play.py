@@ -12,10 +12,10 @@ import random as rand
 
 import torch
 from model.predict import predict
-from model.model import ChessModel_V4 as ChessModel
-from model.model import ChessModel_V1
-model_path = "../model/v4_model.pth"
-model_fast_path = "../model/8-4-2024.pth"
+from model.model import ChessModel, FastChessModel
+ 
+model_path = "../model/chess_model.pth"
+model_fast_path = "../model/chess_model_fast.pth"
 
 # Initialize Pygame
 pygame.init()
@@ -114,7 +114,7 @@ def play_ai(ai_color):
     model.load_state_dict(torch.load(model_path, weights_only=True))
     model.eval()
     
-    model_fast = ChessModel_V1().to(device)
+    model_fast = FastChessModel().to(device)
     model_fast.load_state_dict(torch.load(model_fast_path, weights_only=True))
     model_fast.eval()
     
@@ -122,6 +122,9 @@ def play_ai(ai_color):
 
 
     pgn = chess.pgn.Game()
+    pgn.headers["White"] = ai_color == chess.WHITE and "AI" or "Human"
+    pgn.headers["Black"] = ai_color == chess.BLACK and "AI" or "Human"
+    
     node = pgn
     while running:
         if board.is_game_over():

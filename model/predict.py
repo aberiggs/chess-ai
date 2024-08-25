@@ -9,18 +9,22 @@ import torch
 from data.conversions import board_to_tensor, index_to_move
 
 def move_gen(board, model, device, max_moves=3, min_prob=0.0):
+    gen_time = time.time()
     model_input = board_to_tensor(board, board.turn).to(device)
     model_input = model_input.unsqueeze(0)
+    # print(f"Generated model input in {time.time() - gen_time} seconds")
     logits = model(model_input)
+    # print(f"Generated logits in {time.time() - gen_time} seconds")
     legal_moves = list(board.legal_moves)
     
     softmaxed_output = torch.softmax(logits[0], dim=0)
     sorted_probs = torch.argsort(softmaxed_output, descending=True)
+    # print(f"Generated sorted probs in {time.time() - gen_time} seconds")
   
     potential_moves = []
     i = 0
     while len(potential_moves) < min(max_moves, len(legal_moves)):
-        if i >= len(sorted_probs) or softmaxed_output[sorted_probs[i].item()].item() < min_prob:
+        if i == len(sorted_probs): #or softmaxed_output[sorted_probs[i].item()].item() < min_prob:
             break
         move = index_to_move(sorted_probs[i].item())
         
@@ -36,6 +40,8 @@ def move_gen(board, model, device, max_moves=3, min_prob=0.0):
     if len(potential_moves) == 0:
         # If we have no moves, just return the 1st legal move
         potential_moves = [legal_moves[0]]
+        
+    # print(f"Took {time.time() - gen_time} seconds to generate {len(potential_moves)} move(s)\n")
     return potential_moves
 
 def simulate(board, model, device, depth = 0):
@@ -46,14 +52,15 @@ def simulate(board, model, device, depth = 0):
         elif result == "0-1":
             return -1
         else:
-            return -2
+            return 0 
     
-    if depth > 50:
-        return 0
+    if depth > 80:
+        return -2
     
     potential_moves = list(board.legal_moves)
-    # if depth < 80:
-    potential_moves = move_gen(board, model, device, 4)
+
+    if depth < 1:
+        potential_moves = move_gen(board, model, device, 4)
   
     move = potential_moves[torch.randint(len(potential_moves), (1,)).item()]
 
@@ -70,23 +77,27 @@ def predict(board, model, model_fast, device):
         board.push(move)
         terminal_nodes = 0
         value = 0
-        for _ in range(40):
-            sim_time = time.time()
+        sim_size = 1000
+        sim_time = time.time()
+        print("\nSimulating", sim_size, "games for move", move)
+        for _ in range(sim_size):
             this_val = simulate(board, model_fast, device)
             if this_val >= -1 and this_val <= 1:
                 terminal_nodes += 1
                 value += this_val
-            #print(f"Sim time: {time.time() - sim_time}")
+        print(f"Sim time for {sim_size} took {time.time() - sim_time} seconds. Average sim time was {(time.time() - sim_time) / sim_size} seconds.")
         board.pop()
         
         value = value / terminal_nodes
         if board.turn == chess.BLACK:
             value = -value
 
+        print("Encountered", terminal_nodes, "terminal nodes with an average value of", value)
         value_map[move] = value
-        print(f"Move {move} had value of {value}")
+        
     
-    print(f"Time taken: {time.time() - start_time}")
+    print(f"\nTotal time taken: {time.time() - start_time}")
+    print("--------------------")
     return max(value_map, key=value_map.get)
 
 def main():
