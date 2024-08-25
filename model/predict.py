@@ -8,7 +8,14 @@ import torch
 
 from data.conversions import board_to_tensor, index_to_move
 
+# store the model output in a dictionary with the move as the key
+saved_outputs = {}
+
 def move_gen(board, model, device, max_moves=3, min_prob=0.0):
+    board_fen = board.fen()
+    if board_fen in saved_outputs:
+        return saved_outputs[board_fen]
+    
     gen_time = time.time()
     model_input = board_to_tensor(board, board.turn).to(device)
     model_input = model_input.unsqueeze(0)
@@ -41,6 +48,8 @@ def move_gen(board, model, device, max_moves=3, min_prob=0.0):
         # If we have no moves, just return the 1st legal move
         potential_moves = [legal_moves[0]]
         
+    saved_outputs[board_fen] = potential_moves
+        
     # print(f"Took {time.time() - gen_time} seconds to generate {len(potential_moves)} move(s)\n")
     return potential_moves
 
@@ -60,7 +69,7 @@ def simulate(board, model, device, depth = 0):
     potential_moves = list(board.legal_moves)
 
     if depth < 1:
-        potential_moves = move_gen(board, model, device, 4)
+        potential_moves = move_gen(board, model, device, 6)
   
     move = potential_moves[torch.randint(len(potential_moves), (1,)).item()]
 
@@ -77,7 +86,7 @@ def predict(board, model, model_fast, device):
         board.push(move)
         terminal_nodes = 0
         value = 0
-        sim_size = 1000
+        sim_size = 2000
         sim_time = time.time()
         print("\nSimulating", sim_size, "games for move", move)
         for _ in range(sim_size):

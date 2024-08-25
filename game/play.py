@@ -146,7 +146,7 @@ def play_ai(ai_color):
                     col, row = x // (width // 8), 7 - y // (height // 8)
                     square = chess.square(col, row)
 
-                    if selected_square is None:
+                    if selected_square is None or selected_square != square:
                         selected_square = square
                     else:
                         move = chess.Move(selected_square, square)
@@ -157,9 +157,16 @@ def play_ai(ai_color):
 
                     update_screen(board)
 
+    print("Game over. Result:", board.result())
+    print()
     pgn.headers["Result"] = board.result()
     print(pgn)
-    print()
+    
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+                break
     pygame.quit()
 
 if __name__ == "__main__":
