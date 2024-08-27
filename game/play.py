@@ -1,57 +1,25 @@
-import sys
-import os
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
-import chess
-import chess.pgn
-import pygame
-
-import pygame
-import chess
-import random as rand
-
-import torch
-from model.predict import predict
-from model.model import ChessModel, FastChessModel
- 
-model_path = "../model/chess_model.pth"
-model_fast_path = "../model/chess_model_fast.pth"
-
-# Initialize Pygame
-pygame.init()
-
-# Set up the display
-width, height = 600, 600
-screen = pygame.display.set_mode((width, height))
-pygame.display.set_caption('Chess')
-
-# Load chess board image
-board_image = pygame.image.load('assets/board.png')
-board_image = pygame.transform.scale(board_image, (width, height))
-
 # Function to draw the board
 def draw_board():
     screen.blit(board_image, (0, 0))
 
-
 # Create dictionary for piece to image mapping
-PIECE_TO_IMAGE = {
-    chess.Piece.from_symbol('P'): pygame.image.load('assets/white_pawn.png'),
-    chess.Piece.from_symbol('N'): pygame.image.load('assets/white_knight.png'),
-    chess.Piece.from_symbol('B'): pygame.image.load('assets/white_bishop.png'),
-    chess.Piece.from_symbol('R'): pygame.image.load('assets/white_rook.png'),
-    chess.Piece.from_symbol('Q'): pygame.image.load('assets/white_queen.png'),
-    chess.Piece.from_symbol('K'): pygame.image.load('assets/white_king.png'),
-    chess.Piece.from_symbol('p'): pygame.image.load('assets/black_pawn.png'),
-    chess.Piece.from_symbol('n'): pygame.image.load('assets/black_knight.png'),
-    chess.Piece.from_symbol('b'): pygame.image.load('assets/black_bishop.png'),
-    chess.Piece.from_symbol('r'): pygame.image.load('assets/black_rook.png'),
-    chess.Piece.from_symbol('q'): pygame.image.load('assets/black_queen.png'),
-    chess.Piece.from_symbol('k'): pygame.image.load('assets/black_king.png'),
-}
 
 # Function to draw pieces on the board
 def draw_pieces(board):
+    PIECE_TO_IMAGE = {
+        chess.Piece.from_symbol('P'): pygame.image.load('assets/white_pawn.png'),
+        chess.Piece.from_symbol('N'): pygame.image.load('assets/white_knight.png'),
+        chess.Piece.from_symbol('B'): pygame.image.load('assets/white_bishop.png'),
+        chess.Piece.from_symbol('R'): pygame.image.load('assets/white_rook.png'),
+        chess.Piece.from_symbol('Q'): pygame.image.load('assets/white_queen.png'),
+        chess.Piece.from_symbol('K'): pygame.image.load('assets/white_king.png'),
+        chess.Piece.from_symbol('p'): pygame.image.load('assets/black_pawn.png'),
+        chess.Piece.from_symbol('n'): pygame.image.load('assets/black_knight.png'),
+        chess.Piece.from_symbol('b'): pygame.image.load('assets/black_bishop.png'),
+        chess.Piece.from_symbol('r'): pygame.image.load('assets/black_rook.png'),
+        chess.Piece.from_symbol('q'): pygame.image.load('assets/black_queen.png'),
+        chess.Piece.from_symbol('k'): pygame.image.load('assets/black_king.png'),
+    }
     for square in chess.SQUARES:
         piece = board.piece_at(square)
         if piece:
@@ -110,16 +78,10 @@ def play_ai(ai_color):
 
     print("Using device:", device)
 
-    model = ChessModel().to(device)
-    model.load_state_dict(torch.load(model_path, weights_only=True))
-    model.eval()
     
-    model_fast = FastChessModel().to(device)
-    model_fast.load_state_dict(torch.load(model_fast_path, weights_only=True))
-    model_fast.eval()
+    print("Models loaded...")
     
     update_screen(board)
-
 
     pgn = chess.pgn.Game()
     pgn.headers["White"] = ai_color == chess.WHITE and "AI" or "Human"
@@ -131,7 +93,7 @@ def play_ai(ai_color):
             break
 
         if board.turn == ai_color:
-            move = predict(board, model, model_fast, device)
+            move = predict(board, device)
             board.push(move)
             node = node.add_main_variation(move)
             update_screen(board)
@@ -146,7 +108,7 @@ def play_ai(ai_color):
                     col, row = x // (width // 8), 7 - y // (height // 8)
                     square = chess.square(col, row)
 
-                    if selected_square is None or selected_square != square:
+                    if selected_square is None:
                         selected_square = square
                     else:
                         move = chess.Move(selected_square, square)
@@ -169,7 +131,43 @@ def play_ai(ai_color):
                 break
     pygame.quit()
 
-if __name__ == "__main__":
+if __name__ == '__main__':
+    import sys
+    import os
+    sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+    
+    import chess
+    import chess.pgn
+
+    import chess
+    import random as rand
+
+    import torch
+    from model.predict import predict
+    from model.model import ChessModel, FastChessModel
+    
+    model_path = "../model/chess_model.pth"
+
+    import torch.multiprocessing as multiprocessing 
+    multiprocessing.set_start_method('spawn', force=True)
+    
+    import time
+    from data.conversions import board_to_tensor, index_to_move
+
+    import pygame
+    print("Starting game...")
+    # Initialize Pygame
+    pygame.init()
+
+    # Set up the display
+    width, height = 600, 600
+    screen = pygame.display.set_mode((width, height))
+    pygame.display.set_caption('Chess')
+
+    # Load chess board image
+    board_image = pygame.image.load('assets/board.png')
+    board_image = pygame.transform.scale(board_image, (width, height))
+
     rand.seed(0)
     random_color = rand.choice([chess.WHITE, chess.BLACK])
     play_ai(random_color)
