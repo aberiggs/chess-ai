@@ -5,9 +5,7 @@ import time
 
 from torch.multiprocessing import Pool, Queue
 import torch.multiprocessing as multiprocessing 
-# multiprocessing.set_start_method('spawn')
 
-import copy
 import chess
 import torch
 
@@ -141,7 +139,6 @@ def predict(board, device):
     
     pool.close()
     pool.join()
-    pool.terminate()
 
     print()
     for move in futures:

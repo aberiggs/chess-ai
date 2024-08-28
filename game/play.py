@@ -56,8 +56,12 @@ def main():
                     move = chess.Move(selected_square, square)
                     if move in board.legal_moves:
                         board.push(move)
+                    else:
+                        move.promotion = chess.QUEEN
+                        if move.promotion in board.legal_moves:
+                            board.push(move)
+                    
                     selected_square = None
-
                 update_screen(board)
 
     pygame.quit()
@@ -67,19 +71,6 @@ def play_ai(ai_color):
     board = chess.Board()
     running = True
     selected_square = None
-
-    device = (
-        "cuda"
-        if torch.cuda.is_available()
-        else "mps"
-        if torch.backends.mps.is_available()
-        else "cpu"
-    )
-
-    print("Using device:", device)
-
-    
-    print("Models loaded...")
     
     update_screen(board)
 
@@ -87,15 +78,15 @@ def play_ai(ai_color):
     pgn.headers["White"] = ai_color == chess.WHITE and "AI" or "Human"
     pgn.headers["Black"] = ai_color == chess.BLACK and "AI" or "Human"
     
-    node = pgn
+    #node = pgn
     while running:
         if board.is_game_over():
             break
 
         if board.turn == ai_color:
-            move = predict(board, device)
+            move = predict_move(board)
             board.push(move)
-            node = node.add_main_variation(move)
+            #node = node.add_main_variation(move)
             update_screen(board)
             continue
         else:
@@ -114,7 +105,14 @@ def play_ai(ai_color):
                         move = chess.Move(selected_square, square)
                         if move in board.legal_moves:
                             board.push(move)
-                            node = node.add_main_variation(move)
+                            #node = node.add_main_variation(move)
+                        # Check for promotion
+                        else:
+                            move.promotion = chess.QUEEN
+                            if move in board.legal_moves:
+                                board.push(move)
+                                #node = node.add_main_variation(move)
+                
                         selected_square = None
 
                     update_screen(board)
@@ -144,6 +142,7 @@ if __name__ == '__main__':
 
     import torch
     from model.predict import predict
+    from model.mcts_predict import predict_move
     from model.model import ChessModel, FastChessModel
     
     model_path = "../model/chess_model.pth"
