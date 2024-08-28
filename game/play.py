@@ -68,6 +68,7 @@ def main():
 
 
 def play_ai(ai_color):
+    # test pos: 6k1/p5p1/p1p2n1p/3R3P/PB3K2/8/1P1N4/8 b - - 0 34
     board = chess.Board()
     running = True
     selected_square = None

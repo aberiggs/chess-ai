@@ -52,16 +52,15 @@ class Node:
         self.value = 0
         self.turn = board.turn
         if untried_moves is None:
-            self.untried_moves = gen_moves_fast(board, 5)
-            #list(board.legal_moves)
-            #gen_moves_fast(board, 5) # In the future, these untried moves should be limited to top choices from a fast policy network
+            self.untried_moves = list(board.legal_moves)
+            #gen_moves_fast(board, 5) # Theoretically should be more accurate, but it's not
         else:
             self.untried_moves = untried_moves
         
     def is_fully_expanded(self):
         return len(self.untried_moves) == 0
     
-    def best_child(self, c_param=1.2):
+    def best_child(self, c_param=0.8):
         choices_weights = [(((float(c.value) / c.visits)+1)/2) + c_param * np.sqrt((2 * np.log(self.visits) / c.visits)) for c in self.children]
         return self.children[np.argmax(choices_weights)]
     
@@ -166,7 +165,7 @@ def predict_move(board):
     mcts_root = Node(board, untried_moves=potential_moves)
     
     print("Performing MCTS...\n")
-    for _ in range(800):
+    for _ in range(1000):
         perform_iteration(mcts_root)
         
     
