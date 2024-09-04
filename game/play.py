@@ -68,7 +68,13 @@ def main():
 
 
 def play_ai(ai_color):
-    # test pos: 6k1/p5p1/p1p2n1p/3R3P/PB3K2/8/1P1N4/8 b - - 0 34
+    """
+    Test positions
+    1. 6k1/p5p1/p1p2n1p/3R3P/PB3K2/8/1P1N4/8 b - - 0 34
+    2. r1bq1rk1/pp4pp/4p3/2npPp2/5P1b/2NBPKPP/PBP5/R2Q3R b - - 0 16
+    3. r1bq1rk1/pp4pp/4p3/3pPp2/5P1b/2NPPKPP/PB6/R2Q3R b - - 0 17
+    4. rnbqkb1r/pppppppp/5n2/8/3P4/4P3/PPP2PPP/RNBQKBNR b KQkq - 0 2
+    """
     board = chess.Board()
     running = True
     selected_square = None
@@ -79,7 +85,7 @@ def play_ai(ai_color):
     pgn.headers["White"] = ai_color == chess.WHITE and "AI" or "Human"
     pgn.headers["Black"] = ai_color == chess.BLACK and "AI" or "Human"
     
-    #node = pgn
+    node = pgn
     while running:
         if board.is_game_over():
             break
@@ -87,7 +93,7 @@ def play_ai(ai_color):
         if board.turn == ai_color:
             move = predict_move(board)
             board.push(move)
-            #node = node.add_main_variation(move)
+            node = node.add_main_variation(move)
             update_screen(board)
             continue
         else:
@@ -106,13 +112,13 @@ def play_ai(ai_color):
                         move = chess.Move(selected_square, square)
                         if move in board.legal_moves:
                             board.push(move)
-                            #node = node.add_main_variation(move)
+                            node = node.add_main_variation(move)
                         # Check for promotion
                         else:
                             move.promotion = chess.QUEEN
                             if move in board.legal_moves:
                                 board.push(move)
-                                #node = node.add_main_variation(move)
+                                node = node.add_main_variation(move)
                 
                         selected_square = None
 
@@ -141,19 +147,9 @@ if __name__ == '__main__':
     import chess
     import random as rand
 
-    import torch
-    from model.predict import predict
     from model.mcts_predict import predict_move
     from model.model import ChessModel, FastChessModel
     
-    model_path = "../model/chess_model.pth"
-
-    import torch.multiprocessing as multiprocessing 
-    multiprocessing.set_start_method('spawn', force=True)
-    
-    import time
-    from data.conversions import board_to_tensor, index_to_move
-
     import pygame
     print("Starting game...")
     # Initialize Pygame
