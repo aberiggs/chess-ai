@@ -3,13 +3,11 @@ import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import time
 
-import torch.multiprocessing as multiprocessing 
-
 import chess
 import torch
 import numpy as np
 
-from model.model import ChessModel, FastChessModel
+from model import ChessModel, FastChessModel
 
 from data.conversions import board_to_tensor, index_to_move
 
@@ -23,23 +21,12 @@ device = (
 print(f"Using device: {device}")
 
 model = None
-fast_model = None
 
-is_child = multiprocessing.parent_process() is not None
-
-model_fast_path = "../model/chess_model_fast.pth"
-fast_model = FastChessModel().to(device)
-fast_model.load_state_dict(torch.load(model_fast_path, weights_only=True))
-fast_model.eval()
-print("Fast policy model loaded")
-
-if not is_child:
-    multiprocessing.set_start_method('spawn', force=True)
-    model_path = "../model/chess_model.pth"
-    model = ChessModel().to(device)
-    model.load_state_dict(torch.load(model_path, weights_only=True))
-    model.eval()
-    print("Main policy model loaded")
+model_path = "../model/chess_model.pth"
+model = ChessModel().to(device)
+model.load_state_dict(torch.load(model_path, weights_only=True))
+model.eval()
+print("Main policy model loaded")
     
 # Define a monte carlo tree search node
 class Node:
@@ -164,15 +151,15 @@ def predict_move(board):
     
     mcts_root = Node(board, untried_moves=potential_moves)
     
-    print("Performing MCTS...\n")
+    #print("Performing MCTS...\n")
     for _ in range(1000):
         perform_iteration(mcts_root)
         
     
     best_move = mcts_root.most_visited_child().move
     
-    for c in mcts_root.children:
-        print(f"Move: {c.move} Visits: {c.visits} Value: {c.value}" + (" (*)" if c.move == best_move else ""))
+    #for c in mcts_root.children:
+        #print(f"Move: {c.move} Visits: {c.visits} Value: {c.value}" + (" (*)" if c.move == best_move else ""))
 
     print(f"\nTotal time taken: {time.time() - start_time}")
     print("--------------------")

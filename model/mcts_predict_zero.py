@@ -8,7 +8,7 @@ import chess
 import torch
 import numpy as np
 
-from model.model import ChessModel, FastChessModel
+from model.model import ChessModel, ChessValueModel 
 
 from data.conversions import board_to_tensor, index_to_move, move_to_index
 
@@ -22,8 +22,13 @@ device = (
 print(f"Using device: {device}")
 
 model = None
-fast_model = None
+value_model = None
 
+value_model_path = "../model/chess_value_model.pth"
+value_model = ChessValueModel().to(device)
+value_model.load_state_dict(torch.load(value_model_path, weights_only=True))
+value_model.eval()
+print("Value model loaded")
 
 # model_fast_path = "../model/chess_model_fast.pth"
 # fast_model = FastChessModel().to(device)
@@ -57,21 +62,12 @@ class Node:
     def is_fully_expanded(self):
         return len(self.untried_moves) == 0
     
-    def best_child(self, c_param=1.4):
+    def best_child(self, c_param=0.6):
         max_prob = max(self.move_probabilities.values())
+        #values = {c: value_model(board_to_tensor(c.board, c.board.turn).to(device).unsqueeze(0)).item() for c in self.children}
         lamb = 0.4
 
-        if self.move == None:
-            for c in self.children:
-                value_estimate = ((float(c.value) / c.visits)+1)/2
-                #prob_bonus = c_param * (lamb * (np.sqrt(()  ((0.3 * np.log(self.move_probabilities[c.move] + 1)) / max_prob))))
-                #move_bonus = (1 - lamb) * np.sqrt((2 * np.log(self.visits) / c.visits))
-                bonus = c_param * np.sqrt((np.log(self.visits) / c.visits) * ((0.3 * np.log(self.move_probabilities[c.move] + 1)) / max_prob))
-                print(f"Move: {c.move} | Prob: {self.move_probabilities[c.move]} | Avg Val: {value_estimate} |  Total Bonus: {bonus}")
-                
-        print()
-            
-        choices_weights = [(((float(c.value) / c.visits)+1)/2) + c_param * np.sqrt((np.log(self.visits) / c.visits) * ((0.3 * np.log(self.move_probabilities[c.move] + 1)) / max_prob)) for c in self.children]
+        choices_weights = [(((float(c.value) / c.visits)+1)/2) + (c_param * (self.move_probabilities[c.move] / max_prob) / (c.visits + 1)) for c in self.children]
         return self.children[np.argmax(choices_weights)]
     
     def highest_winrate_child(self):
@@ -79,6 +75,10 @@ class Node:
         return self.children[np.argmax(choices_weights)]
     
     def most_visited_child(self):
+        if self.move == None:
+            for c in self.children:
+                value_estimate = value_model(board_to_tensor(c.board, c.board.turn).to(device).unsqueeze(0)).item()
+                print(f"Value estimate of {c.move} is {value_estimate}")
         choices_weights = [c.visits for c in self.children]
         return self.children[np.argmax(choices_weights)]
     
@@ -96,6 +96,9 @@ class Node:
         return child
     
     def update(self, result):
+        if (self.turn == chess.WHITE):
+            result = -result
+            
         self.visits += 1
         self.value += result
         
@@ -119,17 +122,19 @@ def perform_iteration(node):
         current_node = current_node.add_child(current_node.untried_moves.pop())
     
     # simulation (rollout)
-    temp_board = current_node.board.copy()
-    depth = 0
-    while not temp_board.is_game_over() and depth < 80:
-        move = np.random.choice(list(temp_board.legal_moves))
-        temp_board.push(move)
+    #temp_board = current_node.board.copy()
+    #depth = 0
+    #while not temp_board.is_game_over() and depth < 80:
+        #move = np.random.choice(list(temp_board.legal_moves))
+        #temp_board.push(move)
+    
         
     # backpropagation
-    result = 0
-    if temp_board.is_checkmate():
-        result = 1 if temp_board.turn == current_node.turn else -1
-    current_node.update(result)
+    #result = 0
+    #if temp_board.is_checkmate():
+        #result = 1 if temp_board.turn == current_node.turn else -1
+        
+    current_node.update(value_model(board_to_tensor(current_node.board, current_node.board.turn).to(device).unsqueeze(0)).item())
 
 def gen_legal_move_predictions(board):
     model_input = board_to_tensor(board, board.turn).to(device)
@@ -146,9 +151,6 @@ def gen_legal_move_predictions(board):
     return legal_move_predictions
         
 
-def gen_moves_fast(board, max_moves = 3):
-    return gen_moves_base(board, fast_model, max_moves)
-    
 def gen_moves(board, max_moves = 3):
     return gen_moves_base(board, model, max_moves)
     
@@ -192,7 +194,7 @@ def predict_move(board):
     mcts_root = Node(board, untried_moves=potential_moves)
     
     print("Performing MCTS...\n")
-    for _ in range(1000):
+    for _ in range(500):
         perform_iteration(mcts_root)
         
     

@@ -147,8 +147,7 @@ if __name__ == '__main__':
     import chess
     import random as rand
 
-    from model.mcts_predict import predict_move
-    from model.model import ChessModel, FastChessModel
+    from model.mcts_predict_zero import predict_move
     
     import pygame
     print("Starting game...")
