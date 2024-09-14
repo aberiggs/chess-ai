@@ -62,12 +62,8 @@ class Node:
     def is_fully_expanded(self):
         return len(self.untried_moves) == 0
     
-    def best_child(self, c_param=0.6):
-        max_prob = max(self.move_probabilities.values())
-        #values = {c: value_model(board_to_tensor(c.board, c.board.turn).to(device).unsqueeze(0)).item() for c in self.children}
-        lamb = 0.4
-
-        choices_weights = [(((float(c.value) / c.visits)+1)/2) + (c_param * (self.move_probabilities[c.move] / max_prob) / (c.visits + 1)) for c in self.children]
+    def best_child(self, c_param=15):
+        choices_weights = [(((float(c.value) / c.visits)+1)/2) + (c_param * np.sqrt((2 * np.log(self.visits) / c.visits))* self.move_probabilities[c.move]) / (c.visits + 1) for c in self.children]
         return self.children[np.argmax(choices_weights)]
     
     def highest_winrate_child(self):
@@ -117,24 +113,45 @@ def perform_iteration(node):
     while current_node.is_fully_expanded() and len(current_node.children) > 0:
         current_node = current_node.select_child()
     
+    # check if node is terminal
+    if current_node.board.is_game_over():
+        result = 0
+        game_result = current_node.board.result()
+        if game_result == "1-0":
+            result = 1
+        elif game_result == "0-1":
+            result = -1
+        else:
+            result = 0
+        current_node.update(result)
+        return
+    
     # expansion
     if not current_node.is_fully_expanded():
         current_node = current_node.add_child(current_node.untried_moves.pop())
     
     # simulation (rollout)
-    #temp_board = current_node.board.copy()
-    #depth = 0
-    #while not temp_board.is_game_over() and depth < 80:
-        #move = np.random.choice(list(temp_board.legal_moves))
-        #temp_board.push(move)
+    temp_board = current_node.board.copy()
+    depth = 0
+    while not temp_board.is_game_over() and depth < 80:
+        move = np.random.choice(list(temp_board.legal_moves))
+        temp_board.push(move)
     
+    sim_val = 0
+    if temp_board.is_checkmate():
+        game_result = temp_board.result()
+        if game_result == "1-0":
+            sim_val = 1
+        elif game_result == "0-1":
+            sim_val = -1
         
     # backpropagation
-    #result = 0
-    #if temp_board.is_checkmate():
-        #result = 1 if temp_board.turn == current_node.turn else -1
+    inferenced_val = value_model(board_to_tensor(current_node.board, current_node.board.turn).to(device).unsqueeze(0)).item()
+    
+    mix_coeff = 0.5 # How much the sim value should be weighted (vs the inferenced value)
+    combined_val = mix_coeff * sim_val + (1 - mix_coeff) * inferenced_val
         
-    current_node.update(value_model(board_to_tensor(current_node.board, current_node.board.turn).to(device).unsqueeze(0)).item())
+    current_node.update(combined_val)
 
 def gen_legal_move_predictions(board):
     model_input = board_to_tensor(board, board.turn).to(device)
@@ -194,7 +211,7 @@ def predict_move(board):
     mcts_root = Node(board, untried_moves=potential_moves)
     
     print("Performing MCTS...\n")
-    for _ in range(500):
+    for _ in range(800):
         perform_iteration(mcts_root)
         
     
