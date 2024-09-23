@@ -44,26 +44,39 @@ print("Main policy model loaded")
     
 # Define a monte carlo tree search node
 class Node:
-    def __init__(self, board, parent=None, move=None, untried_moves=None):
+    def __init__(self, board, parent=None, move=None, max_moves = 10):
         self.board = board
         self.parent = parent
         self.move = move
         self.children = []
         self.visits = 0
         self.value = 0
-        self.turn = board.turn
-        self.move_probabilities = gen_legal_move_predictions(board)
+        self.move_turn = board.turn
+        self.move_probabilities = gen_legal_move_predictions(board, max_moves)
         
-        if untried_moves is None:
-            self.untried_moves = list(board.legal_moves)
-        else:
-            self.untried_moves = untried_moves
+        self.untried_moves = []
+        for move in self.move_probabilities.keys():
+                self.untried_moves.append(move)
+                
+        if parent is None:
+            print("Initial move probabilities:")
+            for move in self.move_probabilities.keys():
+                print(f"Move: {move} P: {self.move_probabilities[move]}")
         
     def is_fully_expanded(self):
         return len(self.untried_moves) == 0
     
-    def best_child(self, c_param=15):
-        choices_weights = [(((float(c.value) / c.visits)+1)/2) + (c_param * np.sqrt((2 * np.log(self.visits) / c.visits))* self.move_probabilities[c.move]) / (c.visits + 1) for c in self.children]
+    def best_child(self, c_param=50):
+        flip_val = 1
+        if self.move_turn == chess.BLACK:
+            flip_val = -1
+        
+        choices_weights = [((((flip_val * float(c.value)) / c.visits)+1)/2) + c_param * self.move_probabilities[c.move] * ( np.sqrt((2 * np.log(self.visits) / c.visits)) / (c.visits + 1)) for c in self.children]
+        
+        #if (self.parent is None):
+            #for c in self.children:
+                #print(f"Q: {(((flip_val * float(c.value)) / c.visits)+1)/2}, P: {self.move_probabilities[c.move]}, U: {c_param * self.move_probabilities[c.move] * ( np.sqrt((2 * np.log(self.visits) / c.visits)) / (c.visits + 1))}")
+        
         return self.children[np.argmax(choices_weights)]
     
     def highest_winrate_child(self):
@@ -71,10 +84,6 @@ class Node:
         return self.children[np.argmax(choices_weights)]
     
     def most_visited_child(self):
-        if self.move == None:
-            for c in self.children:
-                value_estimate = value_model(board_to_tensor(c.board, c.board.turn).to(device).unsqueeze(0)).item()
-                print(f"Value estimate of {c.move} is {value_estimate}")
         choices_weights = [c.visits for c in self.children]
         return self.children[np.argmax(choices_weights)]
     
@@ -92,21 +101,15 @@ class Node:
         return child
     
     def update(self, result):
-        if (self.turn == chess.WHITE):
-            result = -result
-            
         self.visits += 1
         self.value += result
         
         parent = self.parent
         while parent is not None:
-            result = -result
             parent.visits += 1
             parent.value += result
             parent = parent.parent
         
-    
-
 def perform_iteration(node):
     # selection
     current_node = node
@@ -133,7 +136,7 @@ def perform_iteration(node):
     # simulation (rollout)
     temp_board = current_node.board.copy()
     depth = 0
-    while not temp_board.is_game_over() and depth < 80:
+    while not temp_board.is_game_over() and depth < 20:
         move = np.random.choice(list(temp_board.legal_moves))
         temp_board.push(move)
     
@@ -146,81 +149,88 @@ def perform_iteration(node):
             sim_val = -1
         
     # backpropagation
-    inferenced_val = value_model(board_to_tensor(current_node.board, current_node.board.turn).to(device).unsqueeze(0)).item()
+    inferenced_val = value_model(board_to_tensor(current_node.board, chess.WHITE).to(device).unsqueeze(0)).item()
+    #print(inferenced_val)
+    #print(current_node.board.fen())
+    #print()
     
-    mix_coeff = 0.5 # How much the sim value should be weighted (vs the inferenced value)
+    mix_coeff = .6 # How much the sim value should be weighted (vs the inferenced value)
     combined_val = mix_coeff * sim_val + (1 - mix_coeff) * inferenced_val
-        
+    # if (current_node.parent is not None and current_node.parent.parent is None):
+        # print (f"Move: {current_node.move} Simulated value: {sim_val} Inferenced value: {inferenced_val} Combined value: {combined_val}")
+    
     current_node.update(combined_val)
 
-def gen_legal_move_predictions(board):
+def gen_legal_move_predictions(board, max_moves = 10):
     model_input = board_to_tensor(board, board.turn).to(device)
     model_input = model_input.unsqueeze(0)
     logits = model(model_input)
     softmaxed_output = torch.softmax(logits[0], dim=0)
     
+    # Sort the probabilities from highest to lowest
+    sorted_output = torch.argsort(softmaxed_output, descending=True)
+    
+    legal_moves = []
+    # Get rid of all non-queen promotions
+    for move in board.legal_moves:
+        if move.promotion is None or move.promotion == chess.QUEEN:
+            legal_moves.append(move)
+    
     legal_move_predictions = {}
     
-    for move in board.legal_moves:        
-        index = move_to_index(move)
-        legal_move_predictions[move] = softmaxed_output[index].item()
-        
-    return legal_move_predictions
-        
-
-def gen_moves(board, max_moves = 3):
-    return gen_moves_base(board, model, max_moves)
     
-def gen_moves_base(board, target_model, max_moves = 3):
-    assert(target_model is not None)
-    
-    model_input = board_to_tensor(board, board.turn).to(device)
-    model_input = model_input.unsqueeze(0)
-    logits = target_model(model_input)
-    legal_moves = list(board.legal_moves)
-    
-    softmaxed_output = torch.softmax(logits[0], dim=0)
-    sorted_probs = torch.argsort(softmaxed_output, descending=True)
-  
-    potential_moves = []
+    # Get the top max_moves legal moves
     i = 0
-    while len(potential_moves) < min(max_moves, len(legal_moves)):
-        if i == len(sorted_probs):
-            break
-        
-        move = index_to_move(sorted_probs[i].item())
-        # Check if move is a promotion
+    while len(legal_move_predictions) < min(max_moves, len(legal_moves)):
+        if (i >= len(sorted_output)):
+            print("Legal moves:")
+            for move in legal_moves:
+                print(f"Move: {move}")
+            print("legal_move_predictions:")
+            for move in legal_move_predictions.keys():
+                print(f"Move: {move} P: {legal_move_predictions[move]}")
+        move = index_to_move(sorted_output[i].item())
         if move in legal_moves:
-            potential_moves.append(move)
+            legal_move_predictions[move] = softmaxed_output[move_to_index(move)].item()
         else:
+            # Check if move should be a promotion
             move.promotion = chess.QUEEN
             if move in legal_moves:
-                potential_moves.append(move)
+                legal_move_predictions[move] = softmaxed_output[move_to_index(move)].item() 
         i += 1
-
-    assert(len(potential_moves) > 0)
-    for move in potential_moves:
-        print(f"Move: {move} Probability: {softmaxed_output[move_to_index(move)].item()}")
-    print()
-    return potential_moves
-
+    
+    return legal_move_predictions
+        
 def predict_move(board):
     start_time = time.time()
-    potential_moves = gen_moves(board, 3)
     
-    mcts_root = Node(board, untried_moves=potential_moves)
+    mcts_root = Node(board, max_moves = 20)
     
     print("Performing MCTS...\n")
-    for _ in range(800):
+    
+    # create a timer to limit the amount of time spent on MCTS
+    sec_allowed = 15
+    iterations = 0
+    
+    time.time()
+    while (time.time() - start_time) < (sec_allowed):
         perform_iteration(mcts_root)
+        iterations += 1
         
+    search_time = time.time() - start_time
     
     best_move = mcts_root.most_visited_child().move
     
     for c in mcts_root.children:
         print(f"Move: {c.move} Visits: {c.visits} Value: {c.value}" + (" (*)" if c.move == best_move else ""))
+    
+    # print(f"\nBest move's children:")       
+    # child_best_move = mcts_root.most_visited_child().most_visited_child().move
+    # print(f"Is white: {mcts_root.most_visited_child().move_turn == chess.WHITE}")
+    # for c in mcts_root.most_visited_child().children:
+        # print(f"Move: {c.move} Visits: {c.visits} Value: {c.value}" + (" (*)" if c.move == child_best_move else ""))
 
-    print(f"\nTotal time taken: {time.time() - start_time}")
+    print(f"\nTotal time taken: {search_time} for {iterations} iterations ({iterations / search_time} iterations/sec)")
     print("--------------------")
     
     return best_move
