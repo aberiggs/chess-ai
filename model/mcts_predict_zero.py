@@ -66,16 +66,16 @@ class Node:
     def is_fully_expanded(self):
         return len(self.untried_moves) == 0
     
-    def best_child(self, c_param=50):
+    def best_child(self, c_param=30):
         flip_val = 1
         if self.move_turn == chess.BLACK:
             flip_val = -1
         
         choices_weights = [((((flip_val * float(c.value)) / c.visits)+1)/2) + c_param * self.move_probabilities[c.move] * ( np.sqrt((2 * np.log(self.visits) / c.visits)) / (c.visits + 1)) for c in self.children]
         
-        #if (self.parent is None):
-            #for c in self.children:
-                #print(f"Q: {(((flip_val * float(c.value)) / c.visits)+1)/2}, P: {self.move_probabilities[c.move]}, U: {c_param * self.move_probabilities[c.move] * ( np.sqrt((2 * np.log(self.visits) / c.visits)) / (c.visits + 1))}")
+        # if (self.parent is None):
+            # for c in self.children:
+                # print(f"Move: {c.move} Q: {(((flip_val * float(c.value)) / c.visits)+1)/2}, P: {self.move_probabilities[c.move]}, U: {c_param * self.move_probabilities[c.move] * (np.sqrt(self.visits) / (c.visits + 1))}")
         
         return self.children[np.argmax(choices_weights)]
     
@@ -139,14 +139,26 @@ def perform_iteration(node):
     while not temp_board.is_game_over() and depth < 20:
         move = np.random.choice(list(temp_board.legal_moves))
         temp_board.push(move)
-    
+        depth += 1
+
     sim_val = 0
-    if temp_board.is_checkmate():
+    if temp_board.is_game_over() or temp_board.is_stalemate() or temp_board.can_claim_draw():
         game_result = temp_board.result()
         if game_result == "1-0":
             sim_val = 1
         elif game_result == "0-1":
             sim_val = -1
+        else:
+            # Punish stalemates (within reason)
+            if current_node.move_turn == chess.WHITE:
+                sim_val = 0.5
+            else:
+                sim_val = -0.5
+    else:
+        # Idea: Non-terminal state; use value model to predict value
+        #current_node.update(value_model(board_to_tensor(current_node.board, chess.WHITE).to(device).unsqueeze(0)).item())
+        #return
+        sim_val = 0
         
     # backpropagation
     inferenced_val = value_model(board_to_tensor(current_node.board, chess.WHITE).to(device).unsqueeze(0)).item()
@@ -154,10 +166,10 @@ def perform_iteration(node):
     #print(current_node.board.fen())
     #print()
     
-    mix_coeff = .6 # How much the sim value should be weighted (vs the inferenced value)
+    mix_coeff = .5 # How much the sim value should be weighted (vs the inferenced value)
     combined_val = mix_coeff * sim_val + (1 - mix_coeff) * inferenced_val
-    # if (current_node.parent is not None and current_node.parent.parent is None):
-        # print (f"Move: {current_node.move} Simulated value: {sim_val} Inferenced value: {inferenced_val} Combined value: {combined_val}")
+    if (current_node.parent is not None and current_node.parent.parent is None):
+        print (f"Move: {current_node.move} Simulated value: {sim_val} Inferenced value: {inferenced_val} Combined value: {combined_val}")
     
     current_node.update(combined_val)
 
@@ -209,7 +221,7 @@ def predict_move(board):
     print("Performing MCTS...\n")
     
     # create a timer to limit the amount of time spent on MCTS
-    sec_allowed = 15
+    sec_allowed = 10
     iterations = 0
     
     time.time()

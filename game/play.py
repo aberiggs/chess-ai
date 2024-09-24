@@ -77,8 +77,9 @@ def play_ai(ai_color):
     5. 8/5pk1/4p3/6bK/8/4q3/8/8 b - - 6 70
     6. r1bq1rk1/ppp1ppbp/5np1/3PP3/2P5/2N5/PP2B1PP/R1BQK2R b KQ - 0 11
     7. rnbqk2r/ppp2ppp/4p3/2bnP1B1/8/6PN/PP3P1P/RN1QKB1R b KQkq - 1 9
+    8. 8/8/8/8/8/2k5/5ppp/1K6 b - - 11 85
     """
-    board = chess.Board("8/8/8/8/8/2k5/5ppp/1K6 b - - 11 85")
+    board = chess.Board()
     running = True
     selected_square = None
     
