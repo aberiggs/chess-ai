@@ -66,21 +66,17 @@ class Node:
     def is_fully_expanded(self):
         return len(self.untried_moves) == 0
     
-    def best_child(self, c_param=30):
+    def best_child(self, c_param=2):
         flip_val = 1
         if self.move_turn == chess.BLACK:
             flip_val = -1
         
-        choices_weights = [((((flip_val * float(c.value)) / c.visits)+1)/2) + c_param * self.move_probabilities[c.move] * ( np.sqrt((2 * np.log(self.visits) / c.visits)) / (c.visits + 1)) for c in self.children]
+        choices_weights = [((((flip_val * float(c.value)) / c.visits)+1)/2) + c_param * self.move_probabilities[c.move] * (np.sqrt(self.visits) / (c.visits + 1)) for c in self.children]
         
         # if (self.parent is None):
             # for c in self.children:
                 # print(f"Move: {c.move} Q: {(((flip_val * float(c.value)) / c.visits)+1)/2}, P: {self.move_probabilities[c.move]}, U: {c_param * self.move_probabilities[c.move] * (np.sqrt(self.visits) / (c.visits + 1))}")
         
-        return self.children[np.argmax(choices_weights)]
-    
-    def highest_winrate_child(self):
-        choices_weights = [c.value / c.visits for c in self.children]
         return self.children[np.argmax(choices_weights)]
     
     def most_visited_child(self):
@@ -156,9 +152,9 @@ def perform_iteration(node):
                 sim_val = -0.5
     else:
         # Idea: Non-terminal state; use value model to predict value
-        #current_node.update(value_model(board_to_tensor(current_node.board, chess.WHITE).to(device).unsqueeze(0)).item())
-        #return
-        sim_val = 0
+        current_node.update(value_model(board_to_tensor(current_node.board, chess.WHITE).to(device).unsqueeze(0)).item())
+        return
+        # sim_val = 0
         
     # backpropagation
     inferenced_val = value_model(board_to_tensor(current_node.board, chess.WHITE).to(device).unsqueeze(0)).item()
@@ -221,7 +217,7 @@ def predict_move(board):
     print("Performing MCTS...\n")
     
     # create a timer to limit the amount of time spent on MCTS
-    sec_allowed = 10
+    sec_allowed = 6
     iterations = 0
     
     time.time()
