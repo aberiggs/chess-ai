@@ -30,21 +30,14 @@ value_model.load_state_dict(torch.load(value_model_path, weights_only=True))
 value_model.eval()
 print("Value model loaded")
 
-# model_fast_path = "../model/chess_model_fast.pth"
-# fast_model = FastChessModel().to(device)
-# fast_model.load_state_dict(torch.load(model_fast_path, weights_only=True))
-# fast_model.eval()
-# print("Fast policy model loaded")
-
 model_path = "../model/chess_model.pth"
 model = ChessModel().to(device)
 model.load_state_dict(torch.load(model_path, weights_only=True))
 model.eval()
 print("Main policy model loaded")
     
-# Define a monte carlo tree search node
 class Node:
-    def __init__(self, board, parent=None, move=None, max_moves = 10):
+    def __init__(self, board, parent=None, move=None, max_moves = 20):
         self.board = board
         self.parent = parent
         self.move = move
@@ -66,17 +59,33 @@ class Node:
     def is_fully_expanded(self):
         return len(self.untried_moves) == 0
     
-    def best_child(self, c_param=2):
+    def calc_weight(self, c, c_param=0.3):
         flip_val = 1
         if self.move_turn == chess.BLACK:
             flip_val = -1
         
-        choices_weights = [((((flip_val * float(c.value)) / c.visits)+1)/2) + c_param * self.move_probabilities[c.move] * (np.sqrt(self.visits) / (c.visits + 1)) for c in self.children]
+        value = (flip_val * float(c.value)) / c.visits
+        exploration = c_param * np.sqrt((0.5 * np.log(self.visits)) / (c.visits + 1))
+        prob_weight = exploration * (self.move_probabilities[c.move] + 1)#10*self.move_probabilities[c.move]/(c.visits+1)
+        
+        print_weights = False
+        if (print_weights and self.parent == None):
+            print(f"Move: {c.move} Q: {value}, P: {self.move_probabilities[c.move]}, U: {exploration}, Pw: {prob_weight}")
+        
+        return value + prob_weight
+    
+    def best_child(self):
+        
+        
+        
+        
+        #choices_weights = [((((flip_val * float(c.value)) / c.visits)+1)/2) + c_param * np.sqrt((2 * np.log(self.visits)) / (c.visits + 1)) + 10*self.move_probabilities[c.move]/(c.visits+1) for c in self.children]
         
         # if (self.parent is None):
             # for c in self.children:
                 # print(f"Move: {c.move} Q: {(((flip_val * float(c.value)) / c.visits)+1)/2}, P: {self.move_probabilities[c.move]}, U: {c_param * self.move_probabilities[c.move] * (np.sqrt(self.visits) / (c.visits + 1))}")
         
+        choices_weights = [self.calc_weight(c) for c in self.children]
         return self.children[np.argmax(choices_weights)]
     
     def most_visited_child(self):
@@ -151,16 +160,13 @@ def perform_iteration(node):
             else:
                 sim_val = -0.5
     else:
-        # Idea: Non-terminal state; use value model to predict value
-        current_node.update(value_model(board_to_tensor(current_node.board, chess.WHITE).to(device).unsqueeze(0)).item())
-        return
-        # sim_val = 0
+        # Idea: Non-terminal state; use value model to predict value - 0.7 to not overweight this estimate
+        #current_node.update(0.3 * value_model(board_to_tensor(current_node.board, chess.WHITE).to(device).unsqueeze(0)).item())
+        #return
+        sim_val = 0
         
     # backpropagation
     inferenced_val = value_model(board_to_tensor(current_node.board, chess.WHITE).to(device).unsqueeze(0)).item()
-    #print(inferenced_val)
-    #print(current_node.board.fen())
-    #print()
     
     mix_coeff = .5 # How much the sim value should be weighted (vs the inferenced value)
     combined_val = mix_coeff * sim_val + (1 - mix_coeff) * inferenced_val
@@ -217,13 +223,13 @@ def predict_move(board):
     print("Performing MCTS...\n")
     
     # create a timer to limit the amount of time spent on MCTS
-    sec_allowed = 6
+    sec_allowed = 25
     iterations = 0
     
     time.time()
     while (time.time() - start_time) < (sec_allowed):
         perform_iteration(mcts_root)
-        iterations += 1
+        iterations += 2
         
     search_time = time.time() - start_time
     
@@ -232,12 +238,6 @@ def predict_move(board):
     for c in mcts_root.children:
         print(f"Move: {c.move} Visits: {c.visits} Value: {c.value}" + (" (*)" if c.move == best_move else ""))
     
-    # print(f"\nBest move's children:")       
-    # child_best_move = mcts_root.most_visited_child().most_visited_child().move
-    # print(f"Is white: {mcts_root.most_visited_child().move_turn == chess.WHITE}")
-    # for c in mcts_root.most_visited_child().children:
-        # print(f"Move: {c.move} Visits: {c.visits} Value: {c.value}" + (" (*)" if c.move == child_best_move else ""))
-
     print(f"\nTotal time taken: {search_time} for {iterations} iterations ({iterations / search_time} iterations/sec)")
     print("--------------------")
     
